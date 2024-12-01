@@ -1,24 +1,20 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.FileProviders;
-using Nugettino.Extensions;
+using Nugettino.Configurations;
+using Nugettino.Services;
+using Nugettino.Services.Implementations;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<NugettinoOptions>(builder.Configuration.GetSection("NuGet"));
+builder.Services.AddSingleton<IPackagesCollector, PackagesCollector>();
+
 var app = builder.Build();
-
-// Legge la directory dei pacchetti in lista di PackageInfos
-var packagesPath = builder.Configuration.GetSection("NuGet:PackagesPath").Value;
-
-if (!Directory.Exists(packagesPath))
-{
-    Console.WriteLine($"Directory '{packagesPath}' not found. Ensure it exists and contains .nupkg files.");
-    return;
-}
-
-var packageInfos = Directory.EnumerateFiles(packagesPath, "*.nupkg", SearchOption.AllDirectories)
-        .Select(fp => fp.ToPackageInfo()).ToList();
+await app.Services.GetRequiredService<IPackagesCollector>().RefreshAsync();
 
 
 // Configura il middleware per servire i file statici
+var packagesPath = builder.Configuration.GetSection("NuGet:PackagesPath").Value;
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(packagesPath),
@@ -52,9 +48,9 @@ app.MapGet("/v3/index.json", (HttpContext httpContext) =>
 // https://learn.microsoft.com/it-it/nuget/api/search-query-service-resource
 //Directory.EnumerateFiles(packagesPath, "*.nupkg", SearchOption.AllDirectories).Select()
 
-app.MapGet("/v3/search", (string? q, int skip = 0, int take = 20) =>
+app.MapGet("/v3/search", ([FromServices] IPackagesCollector packagesCollector, string? q, int skip = 0, int take = 20) =>
 {
-    var foundPackageInfos = packageInfos
+    var foundPackageInfos = packagesCollector.PackageInfos
         .Where(pi => string.IsNullOrEmpty(q) || pi.FileName.Contains(q, StringComparison.OrdinalIgnoreCase))
         .Skip(skip)
         .Take(take);
@@ -73,4 +69,4 @@ app.MapGet("/v3/search", (string? q, int skip = 0, int take = 20) =>
 });
 
 
-app.Run();
+await app.RunAsync();
