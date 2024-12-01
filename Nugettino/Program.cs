@@ -29,17 +29,23 @@ app.UseStaticFiles(new StaticFileOptions
 
 app.MapGet("/", () => "NuGet Feed Server is running. Use /packages to access packages.");
 
-app.MapGet("/v3/index.json", () => new
+app.MapGet("/v3/index.json", (HttpContext httpContext) => 
 {
-    version = "3.0.0",
-    resources = new[]
+    var scheme = httpContext.Request.Scheme;
+    var hostName = httpContext.Request.Host.ToString();
+    var appUrl = $"{scheme}://{hostName}";
+    return new
     {
-        new Dictionary<string, string> { { "@type", "SearchQueryService" },  { "@id", $"{app.Urls.First()}/v3/search" } },
-        new Dictionary<string, string> { { "@type", "SearchQueryService/3.0.0-rc" },  { "@id", $"{app.Urls.First()}/v3/search" } },
-        new Dictionary<string, string> { { "@type", "SearchQueryService/3.0.0-beta" },  { "@id", $"{app.Urls.First()}/v3/search" } },
-        new Dictionary<string, string> { { "@type", "SearchQueryService/3.5.0" },  { "@id", $"{app.Urls.First()}/v3/search" } },
-        new Dictionary<string, string> { { "@type", "PackageBaseAddress/3.0.0" },  { "@id", $"{app.Urls.First()}/packages" } },
-    }
+        version = "3.0.0",
+        resources = new[]
+        {
+            new Dictionary<string, string> { { "@type", "SearchQueryService" },  { "@id", $"{appUrl}/v3/search" } },
+            new Dictionary<string, string> { { "@type", "SearchQueryService/3.0.0-rc" },  { "@id", $"{appUrl}/v3/search" } },
+            new Dictionary<string, string> { { "@type", "SearchQueryService/3.0.0-beta" },  { "@id", $"{appUrl}/v3/search" } },
+            new Dictionary<string, string> { { "@type", "SearchQueryService/3.5.0" },  { "@id", $"{appUrl}/v3/search" } },
+            new Dictionary<string, string> { { "@type", "PackageBaseAddress/3.0.0" },  { "@id", $"{appUrl}/packages" } },
+        }
+    };
 });
 
 // https://learn.microsoft.com/it-it/nuget/api/package-base-address-resource
@@ -56,10 +62,10 @@ app.MapGet("/v3/search", (string? q, int skip = 0, int take = 20) =>
     return new
     {
         totalHits = foundPackageInfos.Count(),
-        data = foundPackageInfos.Select(name => new
+        data = foundPackageInfos.Select(pi => new
         {
-            id = name.Id,
-            version = name.Version,
+            id = pi.Id,
+            version = pi.Version,
             description = "Fake description",
             authors = new string[] {  }
         })

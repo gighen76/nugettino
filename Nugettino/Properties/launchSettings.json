@@ -5,7 +5,8 @@
       "commandName": "Project",
       "launchBrowser": false,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Nuget__PackagesPath": "C:\\Users\\Gianluca\\.nuget\\packages"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "http://localhost:5004"
@@ -14,18 +15,20 @@
       "commandName": "Project",
       "launchBrowser": false,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Nuget__PackagesPath": "C:\\Users\\Gianluca\\.nuget\\packages"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://127.0.0.1:7234"
     },
     "Container (Dockerfile)": {
       "commandName": "Docker",
-      "launchBrowser": true,
-      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/weatherforecast",
+      "dockerfileRunArguments": "-v C:\\Users\\Gianluca\\.nuget\\packages:/packages",
+      "launchBrowser": false,
       "environmentVariables": {
         "ASPNETCORE_HTTPS_PORTS": "8081",
-        "ASPNETCORE_HTTP_PORTS": "8080"
+        "ASPNETCORE_HTTP_PORTS": "8080",
+        "Nuget__PackagesPath": "/packages"
       },
       "publishAllPorts": true,
       "useSSL": true
