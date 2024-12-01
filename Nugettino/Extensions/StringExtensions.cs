@@ -16,8 +16,7 @@ namespace Nugettino.Extensions
             return new PackageInfo
             {
                 Id = pathParts[^3],
-                Version = pathParts[^2],
-                FileName = Path.GetFileNameWithoutExtension(filePath),
+                Version = pathParts[^2]
             };
         }
 

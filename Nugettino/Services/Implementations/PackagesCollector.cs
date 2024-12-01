@@ -23,6 +23,8 @@ namespace Nugettino.Services.Implementations
 
         public List<PackageInfo>? PackageInfos => _packageInfos;
 
+        public string PackagesPath => _options.PackagesPath;
+
         public async Task RefreshAsync()
         {
             if (!Directory.Exists(_options.PackagesPath))
@@ -39,10 +41,10 @@ namespace Nugettino.Services.Implementations
                 packageInfos.Add(packageInfo);
             }
 
-
             _packageInfos = packageInfos;
 
         }
+
 
         
 

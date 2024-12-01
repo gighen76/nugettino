@@ -1,6 +1,9 @@
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.FileProviders;
 using Nugettino.Configurations;
+using Nugettino.Extensions;
+using Nugettino.Models;
 using Nugettino.Services;
 using Nugettino.Services.Implementations;
 
@@ -12,16 +15,6 @@ builder.Services.AddSingleton<IPackagesCollector, PackagesCollector>();
 var app = builder.Build();
 await app.Services.GetRequiredService<IPackagesCollector>().RefreshAsync();
 
-
-// Configura il middleware per servire i file statici
-var packagesPath = builder.Configuration.GetSection("NuGet:PackagesPath").Value;
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(packagesPath),
-    RequestPath = "/packages",
-    ServeUnknownFileTypes = true,
-    DefaultContentType = "application/octet-stream"
-});
 
 app.MapGet("/", () => "NuGet Feed Server is running. Use /packages to access packages.");
 
@@ -50,10 +43,10 @@ app.MapGet("/v3/index.json", (HttpContext httpContext) =>
 
 app.MapGet("/v3/search", ([FromServices] IPackagesCollector packagesCollector, string? q, int skip = 0, int take = 20) =>
 {
-    var foundPackageInfos = packagesCollector.PackageInfos
-        .Where(pi => string.IsNullOrEmpty(q) || pi.FileName.Contains(q, StringComparison.OrdinalIgnoreCase))
+    var foundPackageInfos = packagesCollector.PackageInfos?
+        .Where(pi => string.IsNullOrEmpty(q) || pi.Id.Contains(q, StringComparison.OrdinalIgnoreCase))
         .Skip(skip)
-        .Take(take);
+        .Take(take) ?? new List<PackageInfo>();
 
     return new
     {
@@ -68,5 +61,50 @@ app.MapGet("/v3/search", ([FromServices] IPackagesCollector packagesCollector, s
     };
 });
 
+app.MapGet("/packages/{id}/index.json", ([FromServices] IPackagesCollector packagesCollector, string id) =>
+{
+    var foundPackageInfos = packagesCollector.PackageInfos?
+        .Where(pi => pi.Id.Equals(id, StringComparison.OrdinalIgnoreCase)) ?? new List<PackageInfo>();
+    return new
+    {
+        versions = foundPackageInfos.Select(pi => pi.Version)
+    };
+});
+
+app.MapGet("/packages/{id}/{version}/{fileName}.nupkg", ([FromServices] IPackagesCollector packagesCollector, string id, string version, string fileName) =>
+{
+
+    if (!fileName.Equals($"{id}.{version}"))
+    {
+        return Results.NotFound("Invalid file name");
+    }
+
+    var foundPackageInfo = packagesCollector.PackageInfos?
+        .SingleOrDefault(pi => pi.Id.Equals(id, StringComparison.OrdinalIgnoreCase) && pi.Version.Equals(version, StringComparison.OrdinalIgnoreCase));
+
+    if (foundPackageInfo == null)
+    {
+        return Results.NotFound("Package not found");
+    }
+
+    var stream = new FileStream(foundPackageInfo.ToNupkgPath(packagesCollector.PackagesPath), FileMode.Open, FileAccess.Read);
+    return Results.File(stream, "application/octet-stream", $"{fileName}.nupkg");
+
+});
+
+app.MapGet("/packages/{id}/{version}/{fileName}.nuspec", ([FromServices] IPackagesCollector packagesCollector, string id, string version, string fileName) =>
+{
+
+    var foundPackageInfo = packagesCollector.PackageInfos?
+        .SingleOrDefault(pi => pi.Id.Equals(id, StringComparison.OrdinalIgnoreCase) && pi.Version.Equals(version, StringComparison.OrdinalIgnoreCase));
+
+    if (foundPackageInfo == null)
+    {
+        return Results.NotFound("Package not found");
+    }
+
+    var stream = new FileStream(foundPackageInfo.ToNuspecPath(packagesCollector.PackagesPath), FileMode.Open, FileAccess.Read);
+    return Results.File(stream, "application/xml", $"{fileName}.nuspec");
+});
 
 await app.RunAsync();

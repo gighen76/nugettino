@@ -10,5 +10,7 @@ namespace Nugettino.Services
 
         public List<PackageInfo>? PackageInfos { get; }
 
+        public string PackagesPath { get; }
+
     }
 }
