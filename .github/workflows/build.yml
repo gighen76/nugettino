@@ -67,4 +67,4 @@ jobs:
         context: .
         push: true
         tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-        file: ./build/Dockerfile
+        file: ./Nugettino/Dockerfile
