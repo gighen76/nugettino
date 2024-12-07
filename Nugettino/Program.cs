@@ -42,14 +42,14 @@ app.MapGet("/v3/index.json", (HttpContext httpContext) =>
 app.MapGet("/v3/search", ([FromServices] IPackagesManager packagesManager, string? q, int skip = 0, int take = 20) =>
 {
     var foundPackageInfos = packagesManager.PackageInfos?
-        .Where(pi => string.IsNullOrEmpty(q) || pi.IdDirectory.Contains(q, StringComparison.OrdinalIgnoreCase))
-        .Skip(skip)
-        .Take(take) ?? new List<PackageInfo>();
+        .Where(pi => string.IsNullOrEmpty(q) || pi.IdDirectory.Contains(q, StringComparison.OrdinalIgnoreCase));
 
     var grupedPackages = foundPackageInfos.GroupBy(pi => pi.IdDirectory)
     .Select(g => new { 
-        LastPackageInfo = g.OrderBy(pi => pi.Version).First() 
-    });
+        LastPackageInfo = g.OrderByDescending(pi => pi.Version).First() 
+    })
+        .Skip(skip)
+        .Take(take);
 
     return new
     {
