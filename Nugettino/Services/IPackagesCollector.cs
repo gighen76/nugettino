@@ -5,12 +5,11 @@ namespace Nugettino.Services
     public interface IPackagesCollector
     {
 
-        public Task RefreshAsync();
+        Task<PackageInfo?> CollectPackageInfoAsync(string packagesPath, string idDirectory, string versionDirectory);
 
+        IAsyncEnumerable<PackageInfo> CollectPackageInfosAsync(string packagesPath, string idDirectory);
 
-        public List<PackageInfo>? PackageInfos { get; }
-
-        public string PackagesPath { get; }
+        IAsyncEnumerable<PackageInfo> CollectPackageInfosAsync(string packagesPath);
 
     }
 }

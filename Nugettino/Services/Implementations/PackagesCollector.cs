@@ -1,52 +1,94 @@
-﻿
-using Microsoft.Extensions.Options;
-using Nugettino.Configurations;
-using Nugettino.Extensions;
+﻿using Nugettino.Extensions;
 using Nugettino.Models;
+using System.Xml;
 
 namespace Nugettino.Services.Implementations
 {
-    public class PackagesCollector : IPackagesCollector
+    public class PackagesCollector: IPackagesCollector
     {
 
-        private readonly NugettinoOptions _options;
+        private readonly IFileSystem _fileSystem;
         private readonly ILogger _logger;
 
-        private List<PackageInfo>? _packageInfos;
-
-
-        public PackagesCollector(IOptions<NugettinoOptions> options, ILogger<PackagesCollector> logger) 
+        public PackagesCollector(IFileSystem fileSystem, ILogger<PackagesCollector> logger)
         {
-            _options = options.Value;
+            _fileSystem = fileSystem;
             _logger = logger;
         }
 
-        public List<PackageInfo>? PackageInfos => _packageInfos;
 
-        public string PackagesPath => _options.PackagesPath;
-
-        public async Task RefreshAsync()
+        public async Task<PackageInfo?> CollectPackageInfoAsync(string packagesPath, string idDirectory, string versionDirectory)
         {
-            if (!Directory.Exists(_options.PackagesPath))
+            var versionDirectoryPath = Path.Combine(packagesPath, idDirectory, versionDirectory);
+
+            _logger.LogInformation($"Collect from versionDirectoryPath [{versionDirectoryPath}]");
+
+            var exactNupkgFileName = await _fileSystem.GetExistingExactFileNameAsync(versionDirectoryPath, $"{idDirectory}.{versionDirectory}.nupkg");
+            if (exactNupkgFileName == null)
             {
-                throw new InvalidOperationException($"Directory '{_options.PackagesPath}' not found. Ensure it exists and contains .nupkg files.");
+                return null;
             }
 
-            var packageInfos = new List<PackageInfo>();
+            var id = exactNupkgFileName.Substring(idDirectory.Length);
+            var version = exactNupkgFileName.Substring(idDirectory.Length + 1, versionDirectory.Length);
+            var exactNuspecFileName = await _fileSystem.GetExistingExactFileNameAsync(versionDirectoryPath, $"{idDirectory}.nuspec");
 
-            foreach (var filePath in Directory.EnumerateFiles(_options.PackagesPath, "*.nupkg", SearchOption.AllDirectories))
+            var packageInfo = new PackageInfo
             {
-                _logger.LogInformation("Adding package [{filePath}]", filePath);
-                var packageInfo = filePath.ToPackageInfo();
-                packageInfos.Add(packageInfo);
-            }
+                Id = id,
+                IdDirectory = idDirectory,
+                Version = version,
+                VersionDirectory = versionDirectory,
+                ExactNupkgFileName = exactNupkgFileName,
+                ExactNuspecFileName = exactNuspecFileName
+            };
 
-            _packageInfos = packageInfos;
+            var nuspecPath = packageInfo.GetNuspecPath(packagesPath);
+            if (!string.IsNullOrEmpty(nuspecPath))
+            {
+                var xmlDocument = await _fileSystem.LoadXmlDocument(nuspecPath);
+                await packageInfo.PopulateFromNuspecAsync(xmlDocument);
+            }
+            
+
+            return packageInfo;
+
 
         }
 
 
-        
+        public async IAsyncEnumerable<PackageInfo> CollectPackageInfosAsync(string packagesPath, string idDirectory)
+        {
+            var idDirectoryPath = Path.Combine(packagesPath, idDirectory);
+
+            _logger.LogInformation($"Collect from idDirectoryPath [{idDirectoryPath}]");
+
+            await foreach (var versionDirectory in _fileSystem.EnumerateDirectoryNamesAsync(idDirectoryPath))
+            {
+                var packageVersion = await CollectPackageInfoAsync(packagesPath, idDirectory, versionDirectory);
+                if (packageVersion == null)
+                {
+                    continue;
+                }
+                yield return packageVersion;
+            }
+        }
+
+
+        public async IAsyncEnumerable<PackageInfo> CollectPackageInfosAsync(string packagesPath)
+        {
+            _logger.LogInformation($"Collect packages from [{packagesPath}]");
+
+            await foreach (var idDirectory in _fileSystem.EnumerateDirectoryNamesAsync(packagesPath))
+            {
+                await foreach (var packageInfo in CollectPackageInfosAsync(packagesPath, idDirectory))
+                {
+                    yield return packageInfo;
+                }
+            }
+
+        }
+
 
     }
 }
