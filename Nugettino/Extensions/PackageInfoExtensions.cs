@@ -31,7 +31,7 @@ namespace Nugettino.Extensions
         }
 
 
-        public static async Task PopulateFromNuspecAsync(this PackageInfo packageInfo, XmlDocument xmlDocument)
+        public static void PopulateFromNuspec(this PackageInfo packageInfo, XmlDocument xmlDocument)
         {
 
             var idElements = xmlDocument.GetElementsByTagName("id");

@@ -47,7 +47,7 @@ namespace Nugettino.Services.Implementations
             if (!string.IsNullOrEmpty(nuspecPath))
             {
                 var xmlDocument = await _fileSystem.LoadXmlDocument(nuspecPath);
-                await packageInfo.PopulateFromNuspecAsync(xmlDocument);
+                packageInfo.PopulateFromNuspec(xmlDocument);
             }
             
 
